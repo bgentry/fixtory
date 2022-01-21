@@ -8,14 +8,20 @@ import (
 	"github.com/k-yomo/fixtory"
 )
 
+type AuthorTrait struct {
+	Author Author
+	Zero   []AuthorField
+}
+
 type AuthorFactory interface {
-	NewBuilder(bluePrint AuthorBluePrintFunc, traits ...Author) AuthorBuilder
+	NewBuilder(bluePrint AuthorBluePrintFunc, traits ...AuthorTrait) AuthorBuilder
 	OnBuild(onBuild func(t *testing.T, author *Author))
 	Reset()
 }
 
 type AuthorBuilder interface {
-	EachParam(authorParams ...Author) AuthorBuilder
+	EachParam(authorParams ...AuthorTrait) AuthorBuilder
+	Set(author Author) AuthorBuilder
 	Zero(authorFields ...AuthorField) AuthorBuilder
 	ResetAfter() AuthorBuilder
 
@@ -50,15 +56,28 @@ func NewAuthorFactory(t *testing.T) AuthorFactory {
 	return &authorFactory{t: t, factory: fixtory.NewFactory(t, Author{})}
 }
 
-func (uf *authorFactory) NewBuilder(bluePrint AuthorBluePrintFunc, authorTraits ...Author) AuthorBuilder {
+func (uf *authorFactory) NewBuilder(bluePrint AuthorBluePrintFunc, traits ...AuthorTrait) AuthorBuilder {
 	uf.t.Helper()
 
 	var bp fixtory.BluePrintFunc
 	if bluePrint != nil {
 		bp = func(i int, last interface{}) interface{} { return bluePrint(i, last.(Author)) }
 	}
-	builder := uf.factory.NewBuilder(bp, fixtory.ConvertToInterfaceArray(authorTraits)...)
 
+	traitStructs := make([]Author, len(traits))
+	traitZeroes := make([][]string, len(traits))
+
+	for i := range traits {
+		traitStructs[i] = traits[i].Author
+
+		fields := make([]string, 0, len(traits[i].Zero))
+		for _, f := range traits[i].Zero {
+			fields = append(fields, string(f))
+		}
+		traitZeroes[i] = fields
+	}
+
+	builder := uf.factory.NewBuilder(bp, fixtory.ConvertToInterfaceArray(traitStructs), traitZeroes)
 	return &authorBuilder{t: uf.t, builder: builder}
 }
 
@@ -72,6 +91,13 @@ func (uf *authorFactory) Reset() {
 	uf.t.Helper()
 
 	uf.factory.Reset()
+}
+
+func (ub *authorBuilder) Set(author Author) AuthorBuilder {
+	ub.t.Helper()
+
+	ub.builder = ub.builder.Set(author)
+	return ub
 }
 
 func (ub *authorBuilder) Zero(authorFields ...AuthorField) AuthorBuilder {
@@ -92,10 +118,23 @@ func (ub *authorBuilder) ResetAfter() AuthorBuilder {
 	return ub
 }
 
-func (ub *authorBuilder) EachParam(authorParams ...Author) AuthorBuilder {
+func (ub *authorBuilder) EachParam(authorParams ...AuthorTrait) AuthorBuilder {
 	ub.t.Helper()
 
-	ub.builder = ub.builder.EachParam(fixtory.ConvertToInterfaceArray(authorParams)...)
+	traitStructs := make([]Author, len(authorParams))
+	traitZeroes := make([][]string, len(authorParams))
+
+	for i := range authorParams {
+		traitStructs[i] = authorParams[i].Author
+
+		fields := make([]string, 0, len(authorParams[i].Zero))
+		for _, f := range authorParams[i].Zero {
+			fields = append(fields, string(f))
+		}
+		traitZeroes[i] = fields
+	}
+
+	ub.builder = ub.builder.EachParam(fixtory.ConvertToInterfaceArray(traitStructs), traitZeroes)
 	return ub
 }
 
@@ -129,14 +168,20 @@ func (ub *authorBuilder) BuildList(n int) []*Author {
 	return list
 }
 
+type ArticleTrait struct {
+	Article Article
+	Zero    []ArticleField
+}
+
 type ArticleFactory interface {
-	NewBuilder(bluePrint ArticleBluePrintFunc, traits ...Article) ArticleBuilder
+	NewBuilder(bluePrint ArticleBluePrintFunc, traits ...ArticleTrait) ArticleBuilder
 	OnBuild(onBuild func(t *testing.T, article *Article))
 	Reset()
 }
 
 type ArticleBuilder interface {
-	EachParam(articleParams ...Article) ArticleBuilder
+	EachParam(articleParams ...ArticleTrait) ArticleBuilder
+	Set(article Article) ArticleBuilder
 	Zero(articleFields ...ArticleField) ArticleBuilder
 	ResetAfter() ArticleBuilder
 
@@ -177,15 +222,28 @@ func NewArticleFactory(t *testing.T) ArticleFactory {
 	return &articleFactory{t: t, factory: fixtory.NewFactory(t, Article{})}
 }
 
-func (uf *articleFactory) NewBuilder(bluePrint ArticleBluePrintFunc, articleTraits ...Article) ArticleBuilder {
+func (uf *articleFactory) NewBuilder(bluePrint ArticleBluePrintFunc, traits ...ArticleTrait) ArticleBuilder {
 	uf.t.Helper()
 
 	var bp fixtory.BluePrintFunc
 	if bluePrint != nil {
 		bp = func(i int, last interface{}) interface{} { return bluePrint(i, last.(Article)) }
 	}
-	builder := uf.factory.NewBuilder(bp, fixtory.ConvertToInterfaceArray(articleTraits)...)
 
+	traitStructs := make([]Article, len(traits))
+	traitZeroes := make([][]string, len(traits))
+
+	for i := range traits {
+		traitStructs[i] = traits[i].Article
+
+		fields := make([]string, 0, len(traits[i].Zero))
+		for _, f := range traits[i].Zero {
+			fields = append(fields, string(f))
+		}
+		traitZeroes[i] = fields
+	}
+
+	builder := uf.factory.NewBuilder(bp, fixtory.ConvertToInterfaceArray(traitStructs), traitZeroes)
 	return &articleBuilder{t: uf.t, builder: builder}
 }
 
@@ -199,6 +257,13 @@ func (uf *articleFactory) Reset() {
 	uf.t.Helper()
 
 	uf.factory.Reset()
+}
+
+func (ub *articleBuilder) Set(article Article) ArticleBuilder {
+	ub.t.Helper()
+
+	ub.builder = ub.builder.Set(article)
+	return ub
 }
 
 func (ub *articleBuilder) Zero(articleFields ...ArticleField) ArticleBuilder {
@@ -219,10 +284,23 @@ func (ub *articleBuilder) ResetAfter() ArticleBuilder {
 	return ub
 }
 
-func (ub *articleBuilder) EachParam(articleParams ...Article) ArticleBuilder {
+func (ub *articleBuilder) EachParam(articleParams ...ArticleTrait) ArticleBuilder {
 	ub.t.Helper()
 
-	ub.builder = ub.builder.EachParam(fixtory.ConvertToInterfaceArray(articleParams)...)
+	traitStructs := make([]Article, len(articleParams))
+	traitZeroes := make([][]string, len(articleParams))
+
+	for i := range articleParams {
+		traitStructs[i] = articleParams[i].Article
+
+		fields := make([]string, 0, len(articleParams[i].Zero))
+		for _, f := range articleParams[i].Zero {
+			fields = append(fields, string(f))
+		}
+		traitZeroes[i] = fields
+	}
+
+	ub.builder = ub.builder.EachParam(fixtory.ConvertToInterfaceArray(traitStructs), traitZeroes)
 	return ub
 }
 

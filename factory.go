@@ -23,8 +23,11 @@ type Builder struct {
 	// index is the next struct index in this builder
 	index           int
 	bluePrint       func(i int, last interface{}) interface{}
-	traits          []interface{}
-	eachParam       []interface{}
+	traitValues     []interface{}
+	traitZeroes     [][]string
+	eachParamValues []interface{}
+	eachParamZeroes [][]string
+	setValues       interface{}
 	zeroFields      []string
 	resetAfterBuild bool
 }
@@ -33,8 +36,8 @@ func NewFactory(t *testing.T, v interface{}) *Factory {
 	return &Factory{t: t, productType: reflect.PtrTo(reflect.TypeOf(v)), index: 0, last: v}
 }
 
-func (f *Factory) NewBuilder(bluePrint BluePrintFunc, traits ...interface{}) *Builder {
-	return &Builder{Factory: f, bluePrint: bluePrint, traits: traits}
+func (f *Factory) NewBuilder(bluePrint BluePrintFunc, traitValues []interface{}, traitZeroes [][]string) *Builder {
+	return &Builder{Factory: f, bluePrint: bluePrint, traitValues: traitValues, traitZeroes: traitZeroes}
 }
 
 func (f *Factory) Reset() {
@@ -42,8 +45,14 @@ func (f *Factory) Reset() {
 	f.index = 0
 }
 
-func (b *Builder) EachParam(params ...interface{}) *Builder {
-	b.eachParam = params
+func (b *Builder) EachParam(values []interface{}, zeroes [][]string) *Builder {
+	b.eachParamValues = values
+	b.eachParamZeroes = zeroes
+	return b
+}
+
+func (b *Builder) Set(v interface{}) *Builder {
+	b.setValues = v
 	return b
 }
 
@@ -84,11 +93,26 @@ func (b *Builder) build() interface{} {
 	if b.bluePrint != nil {
 		MapNotZeroFields(b.bluePrint(b.Factory.index, b.last), product)
 	}
-	for _, trait := range b.traits {
+	for i, trait := range b.traitValues {
+		// Map the non-zero fields in each trait value struct, and also set the zero
+		// fields for each trait sequentially.
 		MapNotZeroFields(trait, product)
+		for _, f := range b.traitZeroes[i] {
+			uf := reflect.ValueOf(product).Elem().FieldByName(f)
+			uf.Set(reflect.Zero(uf.Type()))
+		}
 	}
-	if len(b.eachParam) > b.index {
-		MapNotZeroFields(b.eachParam[b.index], product)
+	if len(b.eachParamValues) > b.index {
+		// Map the non-zero fields in each trait value struct, and also set the zero
+		// fields for each trait sequentially.
+		MapNotZeroFields(b.eachParamValues[b.index], product)
+		for _, f := range b.eachParamZeroes[b.index] {
+			uf := reflect.ValueOf(product).Elem().FieldByName(f)
+			uf.Set(reflect.Zero(uf.Type()))
+		}
+	}
+	if b.setValues != nil {
+		MapNotZeroFields(b.setValues, product) // map the non-zero overridden values
 	}
 	for _, f := range b.zeroFields {
 		uf := reflect.ValueOf(product).Elem().FieldByName(f)
