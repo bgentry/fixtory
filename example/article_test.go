@@ -27,20 +27,31 @@ var articleBluePrint = func(i int, last Article) Article {
 	}
 }
 
-var articleTraitDraft = Article{
-	Status: ArticleStatusDraft,
+var articleTraitDraft = ArticleTrait{
+	Article{
+		Status: ArticleStatusDraft,
+	},
+	[]ArticleField{ArticlePublishedAtField},
 }
 
-var articleTraitPublishScheduled = Article{
-	Status:             ArticleStatusOpen,
-	PublishScheduledAt: time.Now().Add(1 * time.Hour),
+// articleFactory.NewBuilder(articleBluePrint, []ArticleTrait{articleTraitDraft},  Article{Title: "OMG", LikeCount: 999}, articleTraitDraft).Zero(ArticlePublishedAtField).Values(Article{})
+
+var articleTraitPublishScheduled = ArticleTrait{
+	Article{
+		Status:             ArticleStatusOpen,
+		PublishScheduledAt: time.Now().Add(1 * time.Hour),
+	},
+	nil,
 }
 
-var articleTraitPublished = Article{
-	Status:             ArticleStatusOpen,
-	PublishScheduledAt: time.Now().Add(-1 * time.Hour),
-	PublishedAt:        time.Now().Add(-1 * time.Hour),
-	LikeCount:          15,
+var articleTraitPublished = ArticleTrait{
+	Article{
+		Status:             ArticleStatusOpen,
+		PublishScheduledAt: time.Now().Add(-1 * time.Hour),
+		PublishedAt:        time.Now().Add(-1 * time.Hour),
+		LikeCount:          15,
+	},
+	nil,
 }
 
 func TestArticleList_SelectPublished(t *testing.T) {
@@ -73,6 +84,13 @@ func TestArticleList_SelectPublished(t *testing.T) {
 			}
 		})
 	}
+
+	if waitReview.Status != ArticleStatusDraft {
+		t.Errorf("waitReview Article should be a Draft due to trait value, got %v", waitReview.Status)
+	}
+	if !waitReview.PublishedAt.IsZero() {
+		t.Errorf("waitReview Article should have no PublishedAt due to trait's zero value, got %v", waitReview.PublishedAt)
+	}
 }
 
 func TestArticleList_SelectAuthoredBy(t *testing.T) {
@@ -80,8 +98,8 @@ func TestArticleList_SelectAuthoredBy(t *testing.T) {
 	articleFactory := NewArticleFactory(t)
 
 	author1, author2 := authorFactory.NewBuilder(authorBluePrint).Build2()
-	articlesAuthoredBy1 := articleFactory.NewBuilder(articleBluePrint, Article{AuthorID: author1.ID}).BuildList(4)
-	articleAuthoredBy2 := articleFactory.NewBuilder(articleBluePrint, Article{AuthorID: author2.ID}).Build()
+	articlesAuthoredBy1 := articleFactory.NewBuilder(articleBluePrint).Set(Article{AuthorID: author1.ID}).BuildList(4)
+	articleAuthoredBy2 := articleFactory.NewBuilder(articleBluePrint).Set(Article{AuthorID: author2.ID}).Build()
 
 	type args struct {
 		authorID int

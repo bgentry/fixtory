@@ -21,18 +21,25 @@ const factoryTpl = `
 {{ $lowerStructName := .StructName | ToLower }}
 {{ $factoryInterface := printf "%s%s" .StructName "Factory" }}
 {{ $builderInterface := printf "%s%s" .StructName "Builder" }}
+{{ $traitType := printf "%s%s" .StructName "Trait" }}
 {{ $factory := printf "%s%s" $lowerStructName "Factory" }}
 {{ $builder := printf "%s%s" $lowerStructName "Builder" }}
 {{ $fieldType := printf "%s%s" .StructName "Field" }}
 
+type {{ $traitType }} struct {
+	{{ .StructName }} {{ .StructName }}
+	Zero []{{ $fieldType }}
+}
+
 type {{ $factoryInterface }} interface {
-	NewBuilder(bluePrint {{ .StructName }}BluePrintFunc, traits ...{{ .Struct }}) {{ $builderInterface }}
+	NewBuilder(bluePrint {{ .StructName }}BluePrintFunc, traits ...{{ $traitType }}) {{ $builderInterface }}
 	OnBuild(onBuild func(t *testing.T, {{ $lowerStructName }} *{{ .Struct }}))
 	Reset()
 }
 
 type {{ $builderInterface }} interface {
-	EachParam({{ $lowerStructName }}Params ...{{ .Struct }}) {{ $builderInterface }}
+	EachParam({{ $lowerStructName }}Params ...{{ $traitType }}) {{ $builderInterface }}
+	Set({{ $lowerStructName}} {{ .Struct }}) {{ $builderInterface }}
 	Zero({{ $lowerStructName }}Fields ...{{ $fieldType }}) {{ $builderInterface }}
 	ResetAfter() {{ $builderInterface }}
 
@@ -68,15 +75,28 @@ func New{{ .StructName }}Factory(t *testing.T) {{ $factoryInterface }} {
 	return &{{ $factory }}{t: t, factory: fixtory.NewFactory(t, {{ .Struct }}{})}
 }
 
-func (uf *{{ $factory }}) NewBuilder(bluePrint {{ .StructName }}BluePrintFunc, {{ $lowerStructName }}Traits ...{{ .Struct }}) {{ $builderInterface }} {
+func (uf *{{ $factory }}) NewBuilder(bluePrint {{ .StructName }}BluePrintFunc, traits ...{{ $traitType }}) {{ $builderInterface }} {
 	uf.t.Helper()
 
 	var bp fixtory.BluePrintFunc
 	if bluePrint != nil {
 		bp = func(i int, last interface{}) interface{} { return bluePrint(i, last.({{ .Struct }})) }
 	}
-	builder := uf.factory.NewBuilder(bp, fixtory.ConvertToInterfaceArray({{ $lowerStructName }}Traits)...)
 
+	traitStructs := make([]{{ .Struct }}, len(traits))
+	traitZeroes := make([][]string, len(traits))
+
+	for i := range traits {
+		traitStructs[i] = traits[i].{{ .Struct }}
+
+		fields := make([]string, 0, len(traits[i].Zero))
+		for _, f := range traits[i].Zero {
+			fields = append(fields, string(f))
+		}
+		traitZeroes[i] = fields
+	}
+
+	builder := uf.factory.NewBuilder(bp, fixtory.ConvertToInterfaceArray(traitStructs), traitZeroes)
 	return &{{ $builder }}{t: uf.t, builder: builder}
 }
 
@@ -90,6 +110,13 @@ func (uf *{{ $factory }}) Reset() {
 	uf.t.Helper()
 
 	uf.factory.Reset()
+}
+
+func (ub *{{ $builder }}) Set({{ $lowerStructName }} {{ .Struct }}) {{ $builderInterface }} {
+	ub.t.Helper()
+
+	ub.builder = ub.builder.Set({{ $lowerStructName }})
+	return ub
 }
 
 func (ub *{{ $builder }}) Zero({{ $lowerStructName }}Fields ...{{ $fieldType }}) {{ $builderInterface }} {
@@ -110,10 +137,23 @@ func (ub *{{ $builder }}) ResetAfter() {{ $builderInterface }} {
 	return ub
 }
 
-func (ub *{{ $builder }}) EachParam({{ $lowerStructName }}Params ...{{ .Struct }}) {{ $builderInterface }} {
+func (ub *{{ $builder }}) EachParam({{ $lowerStructName }}Params ...{{ $traitType }}) {{ $builderInterface }} {
 	ub.t.Helper()
 
-	ub.builder = ub.builder.EachParam(fixtory.ConvertToInterfaceArray({{ $lowerStructName }}Params)...)
+	traitStructs := make([]{{ .Struct }}, len({{ $lowerStructName }}Params))
+	traitZeroes := make([][]string, len({{ $lowerStructName }}Params))
+
+	for i := range {{ $lowerStructName }}Params {
+		traitStructs[i] = {{ $lowerStructName }}Params[i].{{ .Struct }}
+
+		fields := make([]string, 0, len({{ $lowerStructName }}Params[i].Zero))
+		for _, f := range {{ $lowerStructName }}Params[i].Zero {
+			fields = append(fields, string(f))
+		}
+		traitZeroes[i] = fields
+	}
+
+	ub.builder = ub.builder.EachParam(fixtory.ConvertToInterfaceArray(traitStructs), traitZeroes)
 	return ub
 }
 
