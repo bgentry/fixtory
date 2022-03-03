@@ -27,7 +27,7 @@ const factoryTpl = `
 {{ $fieldType := printf "%s%s" .StructName "Field" }}
 
 type {{ $traitType }} struct {
-	{{ .StructName }} {{ .StructName }}
+	{{ .StructName }} {{ .Struct }}
 	Zero []{{ $fieldType }}
 }
 
@@ -87,7 +87,7 @@ func (uf *{{ $factory }}) NewBuilder(bluePrint {{ .StructName }}BluePrintFunc, t
 	traitZeroes := make([][]string, len(traits))
 
 	for i := range traits {
-		traitStructs[i] = traits[i].{{ .Struct }}
+		traitStructs[i] = traits[i].{{ .StructName }}
 
 		fields := make([]string, 0, len(traits[i].Zero))
 		for _, f := range traits[i].Zero {
@@ -144,7 +144,7 @@ func (ub *{{ $builder }}) EachParam({{ $lowerStructName }}Params ...{{ $traitTyp
 	traitZeroes := make([][]string, len({{ $lowerStructName }}Params))
 
 	for i := range {{ $lowerStructName }}Params {
-		traitStructs[i] = {{ $lowerStructName }}Params[i].{{ .Struct }}
+		traitStructs[i] = {{ $lowerStructName }}Params[i].{{ .StructName }}
 
 		fields := make([]string, 0, len({{ $lowerStructName }}Params[i].Zero))
 		for _, f := range {{ $lowerStructName }}Params[i].Zero {
