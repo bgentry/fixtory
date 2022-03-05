@@ -131,3 +131,29 @@ func TestArticleList_SelectAuthoredBy(t *testing.T) {
 		})
 	}
 }
+
+func buildArticle(t *testing.T, traits []ArticleTrait, attrs Article, zeros []ArticleField) *Article {
+	return NewArticleFactory(t).NewBuilder(articleBluePrint, traits...).Set(attrs).Zero(zeros...).Build()
+}
+
+func buildArticle2(t *testing.T, traits []ArticleTrait) ArticleBuilder {
+	return NewArticleFactory(t).NewBuilder(articleBluePrint, traits...)
+}
+
+func makeArticle(t *testing.T, db DB, traits []ArticleTrait) ArticleBuilder {
+	factory := NewArticleFactory(t)
+	factory.OnBuild(dbInsertArticle) // insert into DB
+	return factory.NewBuilder(articleBluePrint, traits...)
+}
+
+func dbInsertArticle(t *testing.T, article *Article) {
+	if article.ID == 13 {
+		t.Fatalf("Failed to insert article, you're unlucky")
+	}
+	t.Logf("inserted to DB: %+v\n", article)
+}
+
+func TestArticleCleanerConstruction(t *testing.T) {
+	buildArticle(t, nil, Article{}, nil)
+	buildArticle2(t, nil).Set(db.Article{}).Zero(factories.ArticlePublishScheduledAtField).Build()
+}
