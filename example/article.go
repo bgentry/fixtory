@@ -15,8 +15,9 @@ const (
 //go:generate fixtory -type=Author,Article -output=article.fixtory.go
 // Author represents article's author
 type Author struct {
-	ID   int
-	Name string
+	ID              int
+	Name            string
+	unexportedField bool
 }
 
 // Article represents article

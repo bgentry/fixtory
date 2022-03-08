@@ -51,7 +51,9 @@ func Generate(targetDir string, outputDir string, types []string, pkgName string
 			structType := spec.Type.(*ast.StructType)
 			fieldNames := make([]string, 0, len(structType.Fields.List))
 			for _, field := range structType.Fields.List {
-				fieldNames = append(fieldNames, field.Names[0].Name)
+				if ast.IsExported(field.Names[0].Name) {
+					fieldNames = append(fieldNames, field.Names[0].Name)
+				}
 			}
 			tpl := template.Must(template.New("factory").Funcs(template.FuncMap{"ToLower": strings.ToLower}).Parse(factoryTpl))
 			st := spec.Name.Name
