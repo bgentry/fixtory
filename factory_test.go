@@ -86,12 +86,16 @@ func TestBuilder_Build(t *testing.T) {
 	}{
 		{
 			name:    "struct can be initialized with nil blueprint",
-			builder: fac.NewBuilder(nil, testStruct{Int: 5}).ResetAfter(),
+			builder: fac.NewBuilder(nil, []interface{}{testStruct{Int: 5}}, [][]string{{}}).ResetAfter(),
 			want:    &testStruct{Int: 5},
 		},
 		{
-			name:    "struct is overwritten by traits, zero, each param",
-			builder: fac.NewBuilder(bluePrint, testStruct{String: "setByTrait1", Int: 10}, testStruct{String: "setByTrait2", Array: []int{1, 2, 3}}).Zero("Map").EachParam(testStruct{Float: 10.9}),
+			name: "struct is overwritten by traits, zero, each param",
+			builder: fac.NewBuilder(
+				bluePrint,
+				[]interface{}{testStruct{String: "setByTrait1", Int: 10}, testStruct{String: "setByTrait2", Array: []int{1, 2, 3}}},
+				[][]string{{}, {}},
+			).Zero("Map").EachParam([]interface{}{testStruct{Float: 10.9}}, [][]string{{}}),
 			want: &testStruct{
 				String: "setByTrait2",
 				Int:    10,
@@ -106,7 +110,7 @@ func TestBuilder_Build(t *testing.T) {
 		},
 		{
 			name:    "empty fields do not overwrite",
-			builder: fac.NewBuilder(bluePrint, testStruct{}).EachParam(testStruct{}),
+			builder: fac.NewBuilder(bluePrint, []interface{}{testStruct{}}, [][]string{{}}).EachParam([]interface{}{testStruct{}}, [][]string{{}}),
 			want: &testStruct{
 				String: "setByBlueprint",
 				Int:    11,
@@ -149,7 +153,7 @@ func TestFactory_OnBuild(t *testing.T) {
 				t.Errorf("OnBuild() \n%s", diff)
 			}
 		}
-		fac.NewBuilder(nil, want).Build()
+		fac.NewBuilder(nil, []interface{}{want}, [][]string{{}}).Build()
 	})
 }
 
@@ -180,8 +184,8 @@ func TestBuilder_BuildList(t *testing.T) {
 						String: lastChild.String + "a",
 					},
 				}
-			}, testStruct{}).
-				EachParam(testStruct{Float: 0.1}, testStruct{Float: 0.2}, testStruct{Float: 0.3}).
+			}, []interface{}{testStruct{}}, [][]string{{}}).
+				EachParam([]interface{}{testStruct{Float: 0.1}, testStruct{Float: 0.2}, testStruct{Float: 0.3}}, [][]string{{}, {}, {}}).
 				Zero("Map").
 				ResetAfter(),
 			args: args{n: 3},
@@ -195,8 +199,8 @@ func TestBuilder_BuildList(t *testing.T) {
 			name: "initialize struct list with initial index 0 (since index is reset on above test)",
 			builder: fac.NewBuilder(func(i int, last interface{}) interface{} {
 				return testStruct{Int: i + 1}
-			}).
-				EachParam(testStruct{Float: 0.1}, testStruct{}, testStruct{Float: 0.3}).
+			}, nil, nil).
+				EachParam([]interface{}{testStruct{Float: 0.1}, testStruct{}, testStruct{Float: 0.3}}, [][]string{{}, {}, {}}).
 				Zero("Map").
 				ResetAfter(),
 			args: args{n: 3},
@@ -216,4 +220,108 @@ func TestBuilder_BuildList(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuilder_Insert(t *testing.T) {
+	fac := NewFactory(t, testStruct{})
+	fac.OnInsert = func(t *testing.T, v interface{}) {
+		testSt := v.(*testStruct)
+		if testSt.Int == 0 {
+			t.Errorf("OnInsert = %d, want not zero", testSt.Int)
+		}
+	}
+
+	bluePrint := func(i int, last interface{}) interface{} {
+		return testStruct{
+			String: "setByBlueprint",
+			Int:    last.(testStruct).Int + 1,
+			Float:  0.5,
+			Array:  []int{1, 2, 3},
+			Map:    map[string]bool{"a": true},
+			ChildStruct: &childStruct{
+				String: "child",
+				Int:    10,
+			},
+		}
+	}
+
+	tests := []struct {
+		name    string
+		builder *Builder
+		want    interface{}
+	}{
+		{
+			name:    "struct can be initialized with nil blueprint",
+			builder: fac.NewBuilder(nil, []interface{}{testStruct{Int: 5}}, [][]string{{}}).ResetAfter(),
+			want:    &testStruct{Int: 5},
+		},
+		{
+			name:    "struct is overwritten by traits, zero, each param",
+			builder: fac.NewBuilder(bluePrint, []interface{}{testStruct{String: "setByTrait1", Int: 10}, testStruct{String: "setByTrait2", Array: []int{1, 2, 3}}}, [][]string{{}, {}}).Zero("Map").EachParam([]interface{}{testStruct{Float: 10.9}}, [][]string{{}}),
+			want: &testStruct{
+				String: "setByTrait2",
+				Int:    10,
+				Float:  10.9,
+				Array:  []int{1, 2, 3},
+				Map:    nil,
+				ChildStruct: &childStruct{
+					String: "child",
+					Int:    10,
+				},
+			},
+		},
+		{
+			name:    "empty fields do not overwrite",
+			builder: fac.NewBuilder(bluePrint, []interface{}{testStruct{}}, [][]string{{}}).EachParam([]interface{}{testStruct{}}, [][]string{{}}),
+			want: &testStruct{
+				String: "setByBlueprint",
+				Int:    11,
+				Float:  0.5,
+				Array:  []int{1, 2, 3},
+				Map:    map[string]bool{"a": true},
+				ChildStruct: &childStruct{
+					String: "child",
+					Int:    10,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.builder.Insert(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Insert() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFactory_OnInsert(t *testing.T) {
+	fac := NewFactory(t, testStruct{})
+
+	want := testStruct{
+		String:      "a",
+		StringPtr:   func() *string { s := "a"; return &s }(),
+		Int:         5,
+		Float:       0,
+		Array:       nil,
+		Map:         nil,
+		ChildStruct: nil,
+	}
+
+	t.Run("onInsert is called after product is all set, after onBuild", func(t *testing.T) {
+		onBuildCalled := false
+		fac.OnBuild = func(t *testing.T, v interface{}) {
+			onBuildCalled = true
+		}
+		fac.OnInsert = func(t *testing.T, v interface{}) {
+			got := v.(*testStruct)
+			if diff := cmp.Diff(got, &want); diff != "" {
+				t.Errorf("OnInsert() \n%s", diff)
+			}
+			if !onBuildCalled {
+				t.Errorf("onInsert was called before onBuild")
+			}
+		}
+		fac.NewBuilder(nil, []interface{}{want}, [][]string{{}}).Insert()
+	})
 }

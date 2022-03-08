@@ -132,28 +132,20 @@ func TestArticleList_SelectAuthoredBy(t *testing.T) {
 	}
 }
 
-func buildArticle(t *testing.T, traits []ArticleTrait, attrs Article, zeros []ArticleField) *Article {
-	return NewArticleFactory(t).NewBuilder(articleBluePrint, traits...).Set(attrs).Zero(zeros...).Build()
-}
+func TestAuthor_PropagatesOnInsertChanges(t *testing.T) {
+	modifiedAuthorName := "modified author name"
+	authorFactory := NewAuthorFactory(t)
+	authorFactory.OnInsert(func(t *testing.T, author *Author) {
+		t.Logf("author at start of OnInsert: %+v", *author)
+		author2 := *author
+		author2.Name = modifiedAuthorName
+		*author = author2
+	})
 
-func buildArticle2(t *testing.T, traits []ArticleTrait) ArticleBuilder {
-	return NewArticleFactory(t).NewBuilder(articleBluePrint, traits...)
-}
+	author := authorFactory.NewBuilder(authorBluePrint).Insert()
+	t.Logf("author after insert: %+v", *author)
 
-func makeArticle(t *testing.T, db DB, traits []ArticleTrait) ArticleBuilder {
-	factory := NewArticleFactory(t)
-	factory.OnBuild(dbInsertArticle) // insert into DB
-	return factory.NewBuilder(articleBluePrint, traits...)
-}
-
-func dbInsertArticle(t *testing.T, article *Article) {
-	if article.ID == 13 {
-		t.Fatalf("Failed to insert article, you're unlucky")
+	if author.Name != modifiedAuthorName {
+		t.Errorf("expected author name change from OnInsert to be propagated, but wasn't. want=%q got=%q", modifiedAuthorName, author.Name)
 	}
-	t.Logf("inserted to DB: %+v\n", article)
-}
-
-func TestArticleCleanerConstruction(t *testing.T) {
-	buildArticle(t, nil, Article{}, nil)
-	buildArticle2(t, nil).Set(db.Article{}).Zero(factories.ArticlePublishScheduledAtField).Build()
 }

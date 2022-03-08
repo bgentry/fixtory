@@ -16,6 +16,7 @@ type AuthorTrait struct {
 type AuthorFactory interface {
 	NewBuilder(bluePrint AuthorBluePrintFunc, traits ...AuthorTrait) AuthorBuilder
 	OnBuild(onBuild func(t *testing.T, author *Author))
+	OnInsert(onInsert func(t *testing.T, author *Author))
 	Reset()
 }
 
@@ -29,6 +30,8 @@ type AuthorBuilder interface {
 	Build2() (*Author, *Author)
 	Build3() (*Author, *Author, *Author)
 	BuildList(n int) []*Author
+	Insert() *Author
+	InsertList(n int) []*Author
 }
 
 type AuthorBluePrintFunc func(i int, last Author) Author
@@ -79,6 +82,12 @@ func (uf *authorFactory) NewBuilder(bluePrint AuthorBluePrintFunc, traits ...Aut
 
 	builder := uf.factory.NewBuilder(bp, fixtory.ConvertToInterfaceArray(traitStructs), traitZeroes)
 	return &authorBuilder{t: uf.t, builder: builder}
+}
+
+func (uf *authorFactory) OnInsert(onInsert func(t *testing.T, author *Author)) {
+	uf.t.Helper()
+
+	uf.factory.OnInsert = func(t *testing.T, v interface{}) { onInsert(t, v.(*Author)) }
 }
 
 func (uf *authorFactory) OnBuild(onBuild func(t *testing.T, author *Author)) {
@@ -168,6 +177,22 @@ func (ub *authorBuilder) BuildList(n int) []*Author {
 	return list
 }
 
+func (ub *authorBuilder) Insert() *Author {
+	ub.t.Helper()
+
+	return ub.builder.Insert().(*Author)
+}
+
+func (ub *authorBuilder) InsertList(n int) []*Author {
+	ub.t.Helper()
+
+	list := make([]*Author, 0, n)
+	for _, v := range ub.builder.InsertList(n) {
+		list = append(list, v.(*Author))
+	}
+	return list
+}
+
 type ArticleTrait struct {
 	Article Article
 	Zero    []ArticleField
@@ -176,6 +201,7 @@ type ArticleTrait struct {
 type ArticleFactory interface {
 	NewBuilder(bluePrint ArticleBluePrintFunc, traits ...ArticleTrait) ArticleBuilder
 	OnBuild(onBuild func(t *testing.T, article *Article))
+	OnInsert(onInsert func(t *testing.T, article *Article))
 	Reset()
 }
 
@@ -189,6 +215,8 @@ type ArticleBuilder interface {
 	Build2() (*Article, *Article)
 	Build3() (*Article, *Article, *Article)
 	BuildList(n int) []*Article
+	Insert() *Article
+	InsertList(n int) []*Article
 }
 
 type ArticleBluePrintFunc func(i int, last Article) Article
@@ -245,6 +273,12 @@ func (uf *articleFactory) NewBuilder(bluePrint ArticleBluePrintFunc, traits ...A
 
 	builder := uf.factory.NewBuilder(bp, fixtory.ConvertToInterfaceArray(traitStructs), traitZeroes)
 	return &articleBuilder{t: uf.t, builder: builder}
+}
+
+func (uf *articleFactory) OnInsert(onInsert func(t *testing.T, article *Article)) {
+	uf.t.Helper()
+
+	uf.factory.OnInsert = func(t *testing.T, v interface{}) { onInsert(t, v.(*Article)) }
 }
 
 func (uf *articleFactory) OnBuild(onBuild func(t *testing.T, article *Article)) {
@@ -329,6 +363,22 @@ func (ub *articleBuilder) BuildList(n int) []*Article {
 
 	list := make([]*Article, 0, n)
 	for _, v := range ub.builder.BuildList(n) {
+		list = append(list, v.(*Article))
+	}
+	return list
+}
+
+func (ub *articleBuilder) Insert() *Article {
+	ub.t.Helper()
+
+	return ub.builder.Insert().(*Article)
+}
+
+func (ub *articleBuilder) InsertList(n int) []*Article {
+	ub.t.Helper()
+
+	list := make([]*Article, 0, n)
+	for _, v := range ub.builder.InsertList(n) {
 		list = append(list, v.(*Article))
 	}
 	return list

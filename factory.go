@@ -16,6 +16,8 @@ type Factory struct {
 	index int
 	// v is a pointer to struct
 	OnBuild func(t *testing.T, v interface{})
+	// v is a pointer to struct
+	OnInsert func(t *testing.T, v interface{})
 }
 
 type Builder struct {
@@ -68,7 +70,7 @@ func (b *Builder) ResetAfter() *Builder {
 
 func (b *Builder) Build() interface{} {
 	b.index = 0
-	product := b.build()
+	product := b.build(false)
 	if b.resetAfterBuild {
 		b.Factory.Reset()
 	}
@@ -79,7 +81,7 @@ func (b *Builder) BuildList(n int) []interface{} {
 	b.index = 0
 	products := make([]interface{}, 0, n)
 	for i := 0; i < n; i++ {
-		products = append(products, b.build())
+		products = append(products, b.build(false))
 	}
 	if b.resetAfterBuild {
 		b.Factory.Reset()
@@ -87,7 +89,7 @@ func (b *Builder) BuildList(n int) []interface{} {
 	return products
 }
 
-func (b *Builder) build() interface{} {
+func (b *Builder) build(insert bool) interface{} {
 	product := reflect.New(b.productType.Elem()).Interface()
 
 	if b.bluePrint != nil {
@@ -126,5 +128,29 @@ func (b *Builder) build() interface{} {
 	if b.OnBuild != nil {
 		b.OnBuild(b.t, product)
 	}
+	if insert && b.OnInsert != nil {
+		b.OnInsert(b.t, product)
+	}
 	return product
+}
+
+func (b *Builder) Insert() interface{} {
+	b.index = 0
+	product := b.build(true)
+	if b.resetAfterBuild {
+		b.Factory.Reset()
+	}
+	return product
+}
+
+func (b *Builder) InsertList(n int) []interface{} {
+	b.index = 0
+	products := make([]interface{}, 0, n)
+	for i := 0; i < n; i++ {
+		products = append(products, b.build(true))
+	}
+	if b.resetAfterBuild {
+		b.Factory.Reset()
+	}
+	return products
 }

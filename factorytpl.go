@@ -34,6 +34,7 @@ type {{ $traitType }} struct {
 type {{ $factoryInterface }} interface {
 	NewBuilder(bluePrint {{ .StructName }}BluePrintFunc, traits ...{{ $traitType }}) {{ $builderInterface }}
 	OnBuild(onBuild func(t *testing.T, {{ $lowerStructName }} *{{ .Struct }}))
+	OnInsert(onInsert func(t *testing.T, {{ $lowerStructName }} *{{ .Struct }}))
 	Reset()
 }
 
@@ -47,6 +48,8 @@ type {{ $builderInterface }} interface {
 	Build2() (*{{ .Struct }}, *{{ .Struct }})
 	Build3() (*{{ .Struct }}, *{{ .Struct }}, *{{ .Struct }})
 	BuildList(n int) []*{{ .Struct }}
+	Insert() *{{ .Struct }}
+	InsertList(n int) []*{{ .Struct }}
 }
 
 type {{ .StructName }}BluePrintFunc func(i int, last {{ .Struct }}) {{ .Struct }}
@@ -98,6 +101,12 @@ func (uf *{{ $factory }}) NewBuilder(bluePrint {{ .StructName }}BluePrintFunc, t
 
 	builder := uf.factory.NewBuilder(bp, fixtory.ConvertToInterfaceArray(traitStructs), traitZeroes)
 	return &{{ $builder }}{t: uf.t, builder: builder}
+}
+
+func (uf *{{ $factory }}) OnInsert(onInsert func(t *testing.T, {{ $lowerStructName }} *{{ .Struct }})) {
+	uf.t.Helper()
+
+	uf.factory.OnInsert = func(t *testing.T, v interface{}) { onInsert(t, v.(*{{ .Struct }})) }
 }
 
 func (uf *{{ $factory }}) OnBuild(onBuild func(t *testing.T, {{ $lowerStructName }} *{{ .Struct }})) {
@@ -184,6 +193,22 @@ func (ub *{{ $builder }}) BuildList(n int) []*{{ .Struct }} {
 	for _, v := range ub.builder.BuildList(n) {
 		list = append(list, v.(*{{ .Struct }}))
 	}
-	return list 
+	return list
+}
+
+func (ub *{{ $builder }}) Insert() *{{ .Struct }} {
+	ub.t.Helper()
+
+	return ub.builder.Insert().(*{{ .Struct }})
+}
+
+func (ub *{{ $builder }}) InsertList(n int) []*{{ .Struct }} {
+	ub.t.Helper()
+
+	list := make([]*{{ .Struct }}, 0, n)
+	for _, v := range ub.builder.InsertList(n) {
+		list = append(list, v.(*{{ .Struct }}))
+	}
+	return list
 }
 `
