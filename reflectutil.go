@@ -23,7 +23,11 @@ func MapNotZeroFields(from interface{}, to interface{}) {
 	for i := 0; i < fromV.NumField(); i++ {
 		fieldV := fromV.Field(i)
 		if !fieldV.IsZero() {
-			toV.FieldByName(fromV.Type().Field(i).Name).Set(fieldV)
+			dstValue := toV.FieldByName(fromV.Type().Field(i).Name)
+			if !dstValue.CanSet() {
+				continue // skip any fields that can't be set (i.e. unexported fields)
+			}
+			dstValue.Set(fieldV)
 		}
 	}
 }

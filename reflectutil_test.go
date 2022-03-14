@@ -17,6 +17,7 @@ func TestMapNotZeroFields(t *testing.T) {
 		Int         int
 		Float       float64
 		Array       []int
+		unexported  string
 		Map         map[string]bool
 		ChildStruct *childStruct
 	}
@@ -117,6 +118,23 @@ func TestMapNotZeroFields(t *testing.T) {
 				to:   "a",
 			},
 			wantErr: true,
+		},
+		{
+			name: "silently skips setting unexported fields",
+			args: args{
+				from: testStruct{
+					String:     "after",
+					unexported: "foo",
+				},
+				to: &testStruct{
+					String:     "a",
+					unexported: "bar",
+				},
+			},
+			want: &testStruct{
+				String:     "after",
+				unexported: "bar",
+			},
 		},
 	}
 	for _, tt := range tests {
